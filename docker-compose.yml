@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: tms_user
+      POSTGRES_PASSWORD: tms_pass
+      POSTGRES_DB: tms
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tms_user -d tms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  tms-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tms_user:tms_pass@db:5432/tms
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+
+  tms-sim:
+    build:
+      context: .
+      dockerfile: Dockerfile.sim
+    profiles:
+      - simulation
+    environment:
+      PYTHONHASHSEED: "0"
+    volumes:
+      - ./config:/app/config:ro
+      - ./results:/app/results
+    # Пример запуска: docker-compose --profile simulation run tms-sim
+    #   python -m simulation.runner --algorithm EDF --seed 42 --days 30
+
+volumes:
+  postgres_data:

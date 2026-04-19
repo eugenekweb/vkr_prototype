@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+# PYTHONHASHSEED=0 — детерминированность хэш-таблиц Python (условие воспроизводимости экспериментов)
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONHASHSEED=0
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+VOLUME ["/app/results"]
+
+CMD ["python", "-m", "simulation.runner"]
