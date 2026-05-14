@@ -16,6 +16,7 @@ def test_erlang_c_mm1_matches_classic():
     assert abs(wq_h - 0.1) < 1e-12
 
 
+@pytest.mark.integration
 def test_mmc_validation_scenario_smoke():
     """Короткий прогон mmc-validation завершается и даёт конечную аналитику ожидания."""
     from algorithms.base import AlgorithmConfig

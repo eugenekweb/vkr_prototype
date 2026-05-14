@@ -7,12 +7,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from tests.conftest import make_doctor, make_task
 
-# ---------------------------------------------------------------------------
-# C1: is_available=False после AssignmentEngine.assign()
-# ---------------------------------------------------------------------------
 
 def test_assign_sets_is_available_false():
-    """C1: assign() должен заблокировать врача для следующего назначения."""
+    """assign() должен заблокировать врача для следующего назначения."""
     from core.assignment_engine import AssignmentEngine
 
     ae = AssignmentEngine()
@@ -27,7 +24,7 @@ def test_assign_sets_is_available_false():
 
 
 def test_double_assign_prevented_by_is_available():
-    """C1: WLL не назначает второй раз врача, уже занятого в batch-цикле."""
+    """WLL не назначает второй раз врача, уже занятого в batch-цикле."""
     from core.assignment_engine import AssignmentEngine
 
     ae = AssignmentEngine()
@@ -41,12 +38,9 @@ def test_double_assign_prevented_by_is_available():
     assert result is None, "Занятый врач не должен быть выбран повторно"
 
 
-# ---------------------------------------------------------------------------
-# C6: is_outage — _service_process не возвращает врача во время outage
-# ---------------------------------------------------------------------------
 
 def test_is_outage_field_exists():
-    """C6: SimDoctor имеет поле is_outage."""
+    """SimDoctor имеет поле is_outage."""
     from simulation.generators import SimDoctor
 
     doc = SimDoctor(id="d1", specializations=["ECG_REST"], productivity_rate=6.0)
@@ -54,8 +48,9 @@ def test_is_outage_field_exists():
     assert doc.is_outage is False
 
 
+@pytest.mark.integration
 def test_outage_doctor_excluded_from_wll():
-    """C6: Врач с is_outage=True не выбирается при назначении."""
+    """Врач с is_outage=True не выбирается при назначении."""
     import sys
 
     import yaml
@@ -86,12 +81,9 @@ def test_outage_doctor_excluded_from_wll():
     assert doc.id == "d_ok", "Врач с is_outage=True не должен выбираться"
 
 
-# ---------------------------------------------------------------------------
-# I5: datetime.min naive vs aware в QueueManager
-# ---------------------------------------------------------------------------
 
 def test_escalated_at_aware_no_typeerror():
-    """I5: min() по escalated_at не падает с TypeError при aware-datetime."""
+    """min() по escalated_at не падает с TypeError при aware-datetime."""
     from algorithms.base import AlgorithmConfig
     from algorithms.factory import PrioritizerFactory
     from core.assignment_engine import AssignmentEngine
@@ -117,12 +109,9 @@ def test_escalated_at_aware_no_typeerror():
         pytest.fail(f"TypeError при aware escalated_at: {e}")
 
 
-# ---------------------------------------------------------------------------
-# I6: estimate_tat не включает само задание в позицию
-# ---------------------------------------------------------------------------
 
 def test_estimate_tat_excludes_self():
-    """I6: При единственном задании в очереди позиция = 0 → TAT = service_time."""
+    """При единственном задании в очереди позиция = 0 → TAT = service_time."""
     from core.metrics_collector import MetricsCollector
 
     mc = MetricsCollector(target_hours=2.0, max_hours=24.0)
@@ -141,7 +130,7 @@ def test_estimate_tat_excludes_self():
 
 
 def test_estimate_tat_counts_others():
-    """I6: При двух заданиях — другое считается, своё — нет."""
+    """При двух заданиях — другое считается, своё — нет."""
     from core.metrics_collector import MetricsCollector
 
     mc = MetricsCollector(target_hours=2.0, max_hours=24.0)
@@ -158,12 +147,9 @@ def test_estimate_tat_counts_others():
     assert abs(tat_h - expected) < 1e-9, f"estimate_tat={tat_h:.6f}, expected={expected:.6f}"
 
 
-# ---------------------------------------------------------------------------
-# I2: cito_not_assigned в знаменатель SLA_CITO
-# ---------------------------------------------------------------------------
 
 def test_sla_cito_denominator_includes_not_assigned():
-    """I2: SLA_CITO учитывает CITO без врача в знаменателе (вариант B)."""
+    """SLA_CITO учитывает CITO без врача в знаменателе (вариант B)."""
     from core.metrics_collector import MetricsCollector
 
     mc = MetricsCollector(target_hours=2.0, max_hours=24.0, cito_assign_epsilon_sec=5.0)
@@ -183,7 +169,7 @@ def test_sla_cito_denominator_includes_not_assigned():
 
 
 def test_sla_cito_without_escalated():
-    """I2: При отсутствии эскалаций знаменатель = только назначенные."""
+    """При отсутствии эскалаций знаменатель = только назначенные."""
     from core.metrics_collector import MetricsCollector
 
     mc = MetricsCollector(target_hours=2.0, max_hours=24.0, cito_assign_epsilon_sec=5.0)
@@ -198,12 +184,9 @@ def test_sla_cito_without_escalated():
     )
 
 
-# ---------------------------------------------------------------------------
-# I3: SLA_WARNING с elapsed + estimated
-# ---------------------------------------------------------------------------
 
 def test_sla_warning_includes_elapsed():
-    """I3: SLA_WARNING срабатывает по elapsed + estimated, не только estimated."""
+    """SLA_WARNING срабатывает по elapsed + estimated, не только estimated."""
     from core.metrics_collector import MetricsCollector
     from data.models import TaskState
 
@@ -230,7 +213,7 @@ def test_sla_warning_includes_elapsed():
 
 
 def test_sla_warning_not_triggered_too_early():
-    """I3: SLA_WARNING не срабатывает если сумма меньше порога."""
+    """SLA_WARNING не срабатывает если сумма меньше порога."""
     from core.metrics_collector import MetricsCollector
 
     mc = MetricsCollector(target_hours=2.0, max_hours=24.0, warning_threshold=0.5)
@@ -254,12 +237,10 @@ def test_sla_warning_not_triggered_too_early():
     assert len(warnings) == 0, "SLA_WARNING не должен срабатывать при малом elapsed+estimated"
 
 
-# ---------------------------------------------------------------------------
-# P1: priority_value != 0.0 в симуляционном логе
-# ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 def test_priority_value_nonzero_in_audit_log():
-    """P1: priority_value в AuditLog ASSIGNED != 0.0 для заданий с t_arr > 0."""
+    """priority_value в AuditLog ASSIGNED != 0.0 для заданий с t_arr > 0."""
     import json
     import sys
 

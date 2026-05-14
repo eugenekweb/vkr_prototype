@@ -81,12 +81,34 @@ python -m simulation.runner \
 - EDF
 - HYBRID
 
+## Тестирование
+
+Проект содержит **215 unit и интеграционных тестов** с покрытием **68.52%** критических модулей.
+
+```bash
+# Запуск всех тестов
+python -m pytest tests/ -v
+
+# По компонентам
+python -m pytest tests/test_algorithms -v    # 55 тестов алгоритмов
+python -m pytest tests/test_core -v           # 70 тестов ядра
+python -m pytest tests/test_simulation -v     # 48 тестов симуляции
+
+# С покрытием
+python -m pytest tests/ --cov=. --cov-report=html
+```
+
 ## Быстрый старт разработки
 
 ```bash
 # 1) Конфигурация
 cp .env.example .env
 cp config/config.yaml config/config.local.yaml
+
+# Примечание: по умолчанию приложение читает `config/config.yaml`.
+# Файл `config.local.yaml` не загружается автоматически — используйте
+# опцию `--config path/to/config.yaml` при запуске runner или редактируйте
+# `config/config.yaml` напрямую.
 
 # 2) Запуск сервисов
 docker-compose up --build

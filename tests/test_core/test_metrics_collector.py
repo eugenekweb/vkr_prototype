@@ -82,3 +82,30 @@ def test_observer_subscription():
     mc_obj.subscribe("SLA_WARNING", lambda **kw: received.append(kw))
     mc_obj.publish("SLA_WARNING", task=None, t=datetime.now(timezone.utc))
     assert len(received) == 1
+
+
+def test_queue_metrics_time_weighted_and_warmup_cutoff():
+    """Queue-length metrics считаются по post-warmup timeline, а не по сырым сэмплам."""
+    mc_obj = MetricsCollector()
+    mc_obj.record_queue_length(0.0, 3)
+    mc_obj.record_queue_length(10.0, 1)
+    mc_obj.record_queue_length(20.0, 2)
+
+    metrics = mc_obj.compute_queue_metrics(warmup_time_min=5.0, end_min=30.0)
+
+    assert metrics["avg_queue_length"] == pytest.approx(1.8)
+    assert metrics["max_queue_length"] == 3
+    assert metrics["p95_queue_length"] == pytest.approx(3.0)
+
+
+def test_queue_metrics_use_value_at_warmup_boundary():
+    """Значение очереди на границе warmup должно сохраняться, если оно пересекает cutoff."""
+    mc_obj = MetricsCollector()
+    mc_obj.record_queue_length(0.0, 4)
+    mc_obj.record_queue_length(12.0, 1)
+
+    metrics = mc_obj.compute_queue_metrics(warmup_time_min=5.0, end_min=15.0)
+
+    assert metrics["avg_queue_length"] == pytest.approx(3.1)
+    assert metrics["max_queue_length"] == 4
+    assert metrics["p95_queue_length"] == pytest.approx(4.0)

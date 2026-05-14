@@ -49,6 +49,7 @@ def run_simulation(algorithm: str, seed: int, days: float = 1) -> object:
     return sim.run_with_rate(duration_min, 446)
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("algo", ALGORITHMS)
 def test_deterministic_reproducibility(algo):
     """
@@ -64,6 +65,7 @@ def test_deterministic_reproducibility(algo):
     assert r1.total_tasks == r2.total_tasks
 
 
+@pytest.mark.integration
 def test_different_seeds_differ():
     """
     Разные seed дают различающиеся последовательности.
@@ -76,6 +78,7 @@ def test_different_seeds_differ():
     )
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("algo", ALGORITHMS)
 def test_same_seed_same_total_tasks(algo):
     """При одном seed одинаковое число поступивших заданий."""

@@ -34,6 +34,15 @@
 | Исключение escalated задач из стандартной сортировки | core/queue_manager.py                              |
 | Дисперсия нагрузки считается по завершенным заданиям | simulation/simulator.py, core/metrics_collector.py |
 
+## Тестовое покрытие требований
+
+| Требование                               | Тесты                                         | Покрытие |
+| ---------------------------------------- | --------------------------------------------- | -------- |
+| ФТ-1...ФТ-8 (функциональные)             | tests/test_api/, tests/test_core/             | 88–100%  |
+| НФТ-1, НФТ-3...НФТ-7                     | tests/test_simulation/, tests/test_core/      | 76–100%  |
+| Алгоритмы (FIFO, PQ, AGING, EDF, HYBRID) | tests/test_algorithms/                        | 93–100%  |
+| Воспроизводимость (seed)                 | tests/test_algorithms/test_reproducibility.py | 100%     |
+
 ## Команды проверки
 
 ```bash

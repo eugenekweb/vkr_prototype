@@ -417,7 +417,7 @@ def main() -> None:
             args.arrival_rate = growth_rate
     elif args.scenario == "cito-burst":
         if not cli_arrival_rate_set:
-            args.arrival_rate = baseline_rate   # P3: базовая нагрузка + CITO burst
+            args.arrival_rate = baseline_rate
         args.burst_size = args.burst_size if args.burst_size is not None else 15
         args.burst_start = args.burst_start if args.burst_start is not None else 240.0
         args.burst_interval = args.burst_interval if args.burst_interval is not None else 4.0
@@ -425,7 +425,7 @@ def main() -> None:
         if not args.doctor_outage:
             args.doctor_outage = "doc_001"
     elif args.scenario == "validation":
-        args.arrival_rate = 0               # P1: задания вводятся вручную в _run_validation
+        args.arrival_rate = 0  # задания вводятся вручную в _run_validation
         args.days = 1                       # длительность не важна, _run_validation управляет
         args.n_runs = 1                     # только один прогон
     elif args.scenario == "mmc-validation":
@@ -504,7 +504,6 @@ def main() -> None:
         )
         raise SystemExit(2)
 
-    # E9: автоматический CSV-экспорт рядом с JSONL
     csv_path = args.output.replace(".jsonl", ".csv")
     try:
         from simulation.stats import jsonl_to_csv, load_jsonl

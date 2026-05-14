@@ -17,6 +17,7 @@ from algorithms.base import AlgorithmConfig
 from algorithms.factory import PrioritizerFactory
 from core.assignment_engine import AssignmentEngine
 from core.audit_logger import AuditLogger
+from core.metrics_collector import MetricsCollector
 from simulation.generators import (
     SimDoctor,
     SimTask,
@@ -67,6 +68,9 @@ class SimulationResult:
     rho_avg: float = 0.0
     rho_normalized: float = 0.0
     throughput_per_hour: float = 0.0
+    avg_queue_length: float = 0.0
+    max_queue_length: int = 0
+    p95_queue_length: float = 0.0
 
     assignment_sequence: list = field(default_factory=list)
 
@@ -118,6 +122,9 @@ class SimulationResult:
             "tat_p95_min": round(self.tat_p95_min, 2),
             "mean_wait_min": round(self.mean_wait_min, 2),
             "throughput_per_hour": round(self.throughput_per_hour, 2),
+            "avg_queue_length": round(self.avg_queue_length, 6),
+            "max_queue_length": self.max_queue_length,
+            "p95_queue_length": round(self.p95_queue_length, 6),
             "total_tasks": self.total_tasks,
             "completed_tasks": self.completed_tasks,
             "warmup_tasks": self.warmup_tasks,
@@ -202,6 +209,11 @@ class Simulator:
 
         self.prioritizer = PrioritizerFactory.create(algorithm_type, params)
         self.assignment_engine = AssignmentEngine()
+        self._queue_metrics = MetricsCollector(
+            target_hours=config.get("sla", {}).get("target_hours", 2.0),
+            max_hours=config.get("sla", {}).get("max_hours", 24.0),
+            cito_assign_epsilon_sec=config.get("sla", {}).get("cito_assign_epsilon_sec", 5.0),
+        )
 
         self.env = simpy.Environment()
         self.env.task_buffer = []
@@ -291,10 +303,6 @@ class Simulator:
         self._target_min = sla_cfg.get("target_hours", 2.0) * _MIN_PER_HOUR
         self._max_min = sla_cfg.get("max_hours", 24.0) * _MIN_PER_HOUR
 
-    # ------------------------------------------------------------------
-    # Публичный интерфейс
-    # ------------------------------------------------------------------
-
     def _make_arrival_process(self, lambda_per_min: float):
         return arrival_process(
             self.env,
@@ -304,6 +312,13 @@ class Simulator:
             task_gen_cfg=self._task_gen_cfg,
             hourly_profile=self._hourly_profile,
         )
+
+    def _current_queue_len(self) -> int:
+        return sum(1 for task in self._queue.values() if task.state in ("QUEUED", "ESCALATED"))
+
+    def _record_queue_length(self, now_min: float) -> None:
+        current_len = self._current_queue_len()
+        self._queue_metrics.record_queue_length(now_min, current_len)
 
     def run(self, duration_min: float) -> SimulationResult:
         """Запуск имитации на duration_min симуляционных минут."""
@@ -441,6 +456,10 @@ class Simulator:
             valid_tat_sample=n > 0,
             assignment_sequence=list(self._assignment_sequence),
         )
+        queue_metrics = self._queue_metrics.compute_queue_metrics(self._warmup_time_min, duration_min)
+        result.avg_queue_length = float(queue_metrics["avg_queue_length"])
+        result.max_queue_length = int(queue_metrics["max_queue_length"])
+        result.p95_queue_length = float(queue_metrics["p95_queue_length"])
         if n > 0:
             sorted_tat = sorted(self._tat_list)
             result.median_tat_min = sorted_tat[n // 2]
@@ -521,6 +540,7 @@ class Simulator:
                         "arrived_at": arrived_iso,
                     },
                 )
+                self._record_queue_length(self.env.now)
 
             assigned_any = False
             while True:
@@ -682,6 +702,7 @@ class Simulator:
                 "assigned_to_worker": doc.id,
             },
         )
+        self._record_queue_length(sim_now)
 
     def _service_process(self, task: SimTask, doc: SimDoctor):
         """Процесс обслуживания задания врачом."""
@@ -761,6 +782,7 @@ class Simulator:
                                 task_id=task_id,
                                 payload={"triggered_at_min": now},
                             )
+                            self._record_queue_length(now)
                     continue
 
                 # Иначе ждём до ближайшего дедлайна
@@ -783,6 +805,7 @@ class Simulator:
                         task_id=task.id,
                         payload={"triggered_at_min": sim_now},
                     )
+                    self._record_queue_length(sim_now)
 
     @staticmethod
     def _resize_doctors(doctors: list[SimDoctor], target_size: int) -> list[SimDoctor]:

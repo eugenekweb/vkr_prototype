@@ -53,7 +53,8 @@ def export_raw_replications(records: list[dict], output_csv: str) -> None:
         "scenario", "algorithm", "replication", "seed",
         "sla_cito", "sla_plan_target", "sla_plan_max",
         "tat_median_min", "tat_p95_min", "sigma_w2", "rho_avg", "rho_normalized",
-        "throughput_per_hour", "completed_tasks",
+        "throughput_per_hour", "avg_queue_length", "max_queue_length", "p95_queue_length",
+        "completed_tasks",
     ]
     os.makedirs(os.path.dirname(output_csv) if os.path.dirname(output_csv) else ".", exist_ok=True)
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
@@ -75,6 +76,7 @@ def export_aggregated(records: list[dict], output_csv: str) -> None:
         "sla_cito_mean", "sla_plan_target_mean", "sla_plan_max_mean",
         "tat_median_min_mean", "tat_median_min_median", "tat_p95_min_mean",
         "sigma_w2_mean", "rho_avg_mean", "rho_normalized_mean", "throughput_per_hour_mean",
+        "avg_queue_length_mean", "max_queue_length_mean", "p95_queue_length_mean",
     ]
 
     os.makedirs(os.path.dirname(output_csv) if os.path.dirname(output_csv) else ".", exist_ok=True)
@@ -106,6 +108,9 @@ def export_aggregated(records: list[dict], output_csv: str) -> None:
             rho = [_to_float(r.get("rho_avg")) for r in rows]
             rho_norm = [_to_float(r.get("rho_normalized", r.get("rho_avg"))) for r in rows]
             thr = [_to_float(r.get("throughput_per_hour")) for r in tat_rows]
+            q_avg = [_to_float(r.get("avg_queue_length")) for r in rows]
+            q_max = [_to_float(r.get("max_queue_length")) for r in rows]
+            q_p95 = [_to_float(r.get("p95_queue_length")) for r in rows]
 
             w.writerow({
                 "scenario": scenario,
@@ -124,6 +129,9 @@ def export_aggregated(records: list[dict], output_csv: str) -> None:
                 "rho_avg_mean": round(_mean(rho), 4),
                 "rho_normalized_mean": round(_mean(rho_norm), 4),
                 "throughput_per_hour_mean": round(_mean(thr), 4),
+                "avg_queue_length_mean": round(_mean(q_avg), 4),
+                "max_queue_length_mean": round(_mean(q_max), 4),
+                "p95_queue_length_mean": round(_mean(q_p95), 4),
             })
 
 

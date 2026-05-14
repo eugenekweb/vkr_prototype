@@ -7,10 +7,6 @@ from data.models import Assignment, AuditLogEntry, Doctor, Task, TaskState
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# ---------------------------------------------------------------------------
-# TaskRepository
-# ---------------------------------------------------------------------------
-
 class TaskRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session

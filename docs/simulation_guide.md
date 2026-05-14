@@ -105,6 +105,10 @@ python -m pytest tests/test_core/test_random_usage.py -q
 python -m pytest tests/test_core/test_critical_paths.py -q
 ```
 
+## Примечание по SLA_WARNING
+
+В реализации событие `SLA_WARNING` формируется внутри `MetricsCollector` при предиктивной проверке (elapsed + estimated TAT). Однако в экспериментальном (SimPy) контуре эта проверка не вызывается для формирования итоговых summary-метрик, поэтому предупреждения `SLA_WARNING` не влияют на сравнительный анализ алгоритмов в главе 5 (они остаются доступными в audit‑логе для детального расследования, но не используются при расчёте агрегированных показателей).
+
 ## D-sweep D2-D12
 
 Запуск новых D-прогонов выполняется отдельными файлами dN_baseline.jsonl.

@@ -1,5 +1,7 @@
 """Тесты tie-break политики симуляции (детерминированная и rng)."""
 
+import pytest
+
 from algorithms.base import AlgorithmConfig
 from simulation.generators import SimTask
 from simulation.simulator import Simulator
@@ -25,6 +27,7 @@ def _make_minimal_cfg(sim_tie_break: str) -> dict:
     }
 
 
+@pytest.mark.integration
 def test_sim_tie_break_deterministic_mode_uses_id_order():
     cfg = _make_minimal_cfg("deterministic")
     sim = Simulator("EDF", AlgorithmConfig(), seed=42, config=cfg, audit_mode="none", scenario="baseline")
@@ -43,6 +46,7 @@ def test_sim_tie_break_deterministic_mode_uses_id_order():
     assert chosen.id == "doc_a"
 
 
+@pytest.mark.integration
 def test_sim_tie_break_rng_mode_is_reproducible_with_seed():
     cfg = _make_minimal_cfg("rng")
     task = SimTask(

@@ -17,12 +17,14 @@ _REQUIRED_FIELDS = [
     "sigma_w2", "rho_avg", "rho_normalized",
     "tat_median_min", "tat_mean_min", "tat_p95_min",
     "throughput_per_hour", "completed_tasks",
+    "avg_queue_length", "max_queue_length", "p95_queue_length",
 ]
 
 # Метрики для сводного вывода
 _SUMMARY_METRICS = [
     "sla_plan_target", "sla_cito", "tat_p95_min",
     "sigma_w2", "rho_avg", "rho_normalized", "throughput_per_hour",
+    "avg_queue_length", "max_queue_length", "p95_queue_length",
 ]
 
 

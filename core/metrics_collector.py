@@ -41,7 +41,7 @@ class MetricsSnapshot:
             "SLA_plan_max": self.sla_plan_max,
             "online_load_variance": self.online_load_variance,
             "sigma_w2_final": self.sigma_w2_final,
-            # deprecated alias for backward compatibility
+            # устаревший алиас для совместимости
             "load_variance": self.load_variance,
             "queue_depth": self.queue_depth,
             "queue_by_modality": self.queue_by_modality,
@@ -68,6 +68,7 @@ class MetricsCollector:
         self._completed_tasks: list[Task] = []
         self._cito_assignments: dict = {}
         self._cito_not_assigned: int = 0
+        self._queue_timeline: list[tuple[float, int]] = []
 
         self._handlers: dict[str, list[Callable]] = defaultdict(list)
 
@@ -95,6 +96,84 @@ class MetricsCollector:
     def record_cito_escalated(self) -> None:
         """Регистрирует CITO-задание, не получившее врача сразу."""
         self._cito_not_assigned += 1
+
+    def record_queue_length(self, timestamp_min: float, queue_length: int) -> None:
+        """Регистрирует длину очереди в момент изменения ее состава."""
+        timestamp_min = max(0.0, float(timestamp_min))
+        queue_length = max(0, int(queue_length))
+        if self._queue_timeline and self._queue_timeline[-1][0] == timestamp_min:
+            self._queue_timeline[-1] = (timestamp_min, queue_length)
+        else:
+            self._queue_timeline.append((timestamp_min, queue_length))
+
+    @staticmethod
+    def _weighted_queue_metrics(
+        timeline: list[tuple[float, int]],
+        start_min: float,
+        end_min: float,
+    ) -> tuple[float, int, float]:
+        """Считает time-average, максимум и time-weighted p95 по профилю очереди."""
+        if end_min <= start_min:
+            return 0.0, 0, 0.0
+
+        points = sorted((float(t), int(q)) for t, q in timeline)
+        if not points:
+            return 0.0, 0, 0.0
+
+        q_at_start = 0
+        for t, q in points:
+            if t <= start_min:
+                q_at_start = q
+            else:
+                break
+
+        if points[0][0] > start_min:
+            points = [(start_min, q_at_start), *points]
+        elif points[0][0] < start_min:
+            points = [(start_min, q_at_start), *[(t, q) for t, q in points if t > start_min]]
+
+        if points[-1][0] < end_min:
+            points = [*points, (end_min, points[-1][1])]
+
+        intervals: list[tuple[float, int]] = []
+        total_area = 0.0
+        peak = 0
+        for i in range(len(points) - 1):
+            t0, q0 = points[i]
+            t1, _ = points[i + 1]
+            seg_start = max(t0, start_min)
+            seg_end = min(t1, end_min)
+            if seg_end <= seg_start:
+                continue
+            duration = seg_end - seg_start
+            total_area += duration * q0
+            intervals.append((duration, q0))
+            peak = max(peak, q0)
+
+        total_duration = end_min - start_min
+        avg = total_area / total_duration if total_duration > 0 else 0.0
+        if not intervals:
+            return round(avg, 6), peak, 0.0
+
+        threshold = 0.95 * sum(duration for duration, _ in intervals)
+        cumulative = 0.0
+        p95 = 0.0
+        for duration, q in sorted(intervals, key=lambda item: (item[1], item[0])):
+            cumulative += duration
+            p95 = float(q)
+            if cumulative >= threshold:
+                break
+
+        return round(avg, 6), peak, round(p95, 6)
+
+    def compute_queue_metrics(self, warmup_time_min: float, end_min: float) -> dict[str, float | int]:
+        """Возвращает агрегаты очереди по post-warmup timeline."""
+        avg, peak, p95 = self._weighted_queue_metrics(self._queue_timeline, warmup_time_min, end_min)
+        return {
+            "avg_queue_length": avg,
+            "max_queue_length": peak,
+            "p95_queue_length": p95,
+        }
 
     def compute_sla_metrics(self, tasks: Optional[list[Task]] = None) -> dict:
         """Рассчитывает SLA-метрики по завершённым заданиям."""
@@ -238,10 +317,6 @@ class MetricsCollector:
 
         return events
 
-    # ------------------------------------------------------------------
-    # Снимок метрик
-    # ------------------------------------------------------------------
-
     def get_metrics(
         self, queue_state: list[Task], doctors: list[Doctor]
     ) -> MetricsSnapshot:
@@ -253,7 +328,7 @@ class MetricsCollector:
         snap.queue_by_modality = dict(by_mod)
         snap.online_load_variance = self.compute_load_variance(doctors)
         snap.sigma_w2_final = self.compute_final_variance(doctors) if self._completed_tasks else 0.0
-        # deprecated alias for existing clients
+        # устаревший алиас для клиентов
         snap.load_variance = snap.sigma_w2_final if self._completed_tasks else snap.online_load_variance
         sla = self.compute_sla_metrics()
         snap.sla_cito_target = sla["SLA_CITO_target"]

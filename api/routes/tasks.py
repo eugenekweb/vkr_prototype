@@ -42,7 +42,7 @@ def _make_task_response(task: Task, metrics: Optional[MetricsCollector] = None) 
         started_at=task.started_at,
         done_at=task.done_at,
         escalated_at=task.escalated_at,
-        estimated_tat_h=estimated_tat,
+        estimated_tat_h=None,
     )
 
 
@@ -159,7 +159,6 @@ async def update_task_status(
     """Изменяет состояние задания."""
     from data.repository import DoctorRepository, TaskRepository
 
-    # I9: SLA-параметры из app.state, не хардкод
     target_hours = sla_cfg.get("target_hours", 2.0)
     max_hours = sla_cfg.get("max_hours", 24.0)
     now = datetime.now(timezone.utc)
@@ -202,8 +201,6 @@ async def update_task_status(
                         "sla_max_met": sla_m,
                     },
                 )
-                # C2: уменьшаем нагрузку по task.assigned_to, не по body.doctor_id
-                # body.doctor_id используется только для аудита/валидации
                 if task.assigned_to:
                     doc_repo = DoctorRepository(session)
                     await doc_repo.update_load(task.assigned_to, -task.complexity)
